@@ -18,6 +18,13 @@ app = FastAPI(title="Kassza")
 app.mount("/static", StaticFiles(directory=os.path.join(ROOT, "static")), name="static")
 
 
+def _err(e: Exception) -> str:
+    """Error text for the browser, with the API key scrubbed out."""
+    msg = f"{type(e).__name__}: {e}"
+    key = (os.getenv("GEMINI_API_KEY") or "").strip().strip('"').strip("'")
+    return msg.replace(key, "***") if key else msg
+
+
 @app.get("/")
 def index():
     return FileResponse(os.path.join(ROOT, "static", "index.html"))
@@ -51,7 +58,7 @@ async def scan(file: UploadFile = File(...), x_kassza_user: str = Header("")):
     try:
         result = receipt.scan(image, file.content_type or "image/jpeg")
     except Exception as e:  # surface model/network errors to the UI instead of a 500 page
-        raise HTTPException(502, f"{type(e).__name__}: {e}")
+        raise HTTPException(502, _err(e))
     r = result["receipt"]
     if r and result["ok"]:
         r["vat_paid"] = round(sum(v["vat"] or 0 for v in result["vat_split"]))
@@ -66,7 +73,7 @@ async def import_csv(file: UploadFile = File(...), x_kassza_user: str = Header("
     try:
         return bank.import_csv(text, x_kassza_user)
     except Exception as e:
-        raise HTTPException(502, f"{type(e).__name__}: {e}")
+        raise HTTPException(502, _err(e))
 
 
 @app.get("/api/ledger")
@@ -85,7 +92,7 @@ def get_insights(x_kassza_user: str = Header("")):
     try:
         return insights.advise(x_kassza_user)
     except Exception as e:
-        raise HTTPException(502, f"{type(e).__name__}: {e}")
+        raise HTTPException(502, _err(e))
 
 
 @app.get("/api/export.csv", response_class=PlainTextResponse)

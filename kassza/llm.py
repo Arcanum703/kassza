@@ -53,7 +53,7 @@ def _key(backend: str, prompt: str, image: bytes | None) -> str:
 
 
 def _gemini(prompt: str, image: bytes | None, mime: str) -> str:
-    key = os.getenv("GEMINI_API_KEY")
+    key = (os.getenv("GEMINI_API_KEY") or "").strip().strip('"').strip("'")
     if not key:
         raise RuntimeError("GEMINI_API_KEY is not set (put it in .env)")
     parts = [{"text": prompt}]
