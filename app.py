@@ -2,6 +2,7 @@
 import csv
 import io
 import os
+import threading
 
 import uvicorn
 from fastapi import FastAPI, File, HTTPException, UploadFile
@@ -36,6 +37,8 @@ def get_backend():
 def set_backend(b: Backend):
     try:
         llm.set_backend(b.backend)
+        if b.backend == "ollama":
+            threading.Thread(target=llm.warm_ollama, daemon=True).start()
     except ValueError:
         raise HTTPException(400, "backend must be gemini or ollama")
     return get_backend()

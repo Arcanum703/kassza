@@ -51,8 +51,8 @@ def parse(text: str) -> list[dict]:
 
 CAT_PROMPT = """Assign a spending category to each bank transaction description.
 Allowed categories: {categories}, plus "income" for money received and "transfer" for own-account moves, top-ups and savings.
-Return ONLY a JSON object mapping each description exactly as given to one category.
-Descriptions (with a sample signed amount):
+Return ONLY a JSON object mapping each line number (as a string) to one category, e.g. {{"1": "groceries"}}.
+Numbered descriptions (with a sample signed amount):
 {lines}"""
 
 
@@ -62,10 +62,17 @@ def categorize(rows: list[dict]) -> dict[str, str]:
     sample = {}
     for r in rows:
         sample.setdefault(r["merchant"], r["amount"])
-    lines = "\n".join(f"- {m} ({a:g})" for m, a in sample.items())
+    names = list(sample)
+    lines = "\n".join(f"{i}. {m} ({sample[m]:g})" for i, m in enumerate(names, 1))
     out = llm.generate(CAT_PROMPT.format(categories=", ".join(cfg["categories"]), lines=lines))
-    mapping = llm.parse_json(out["text"])
-    return {m: (mapping.get(m) if mapping.get(m) in allowed else "other") for m in sample}
+    raw = llm.parse_json(out["text"])
+    # Small models sometimes echo the description instead of the number; accept both.
+    by_name = {re.sub(r"^\d+\.\s*|\s*\([^)]*\)$", "", str(k)).strip(): v for k, v in raw.items()}
+    result = {}
+    for i, m in enumerate(names, 1):
+        cat = raw.get(str(i)) or by_name.get(m)
+        result[m] = cat if cat in allowed else "other"
+    return result
 
 
 def import_csv(text: str) -> dict:

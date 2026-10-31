@@ -65,16 +65,32 @@ def _gemini(prompt: str, image: bytes | None, mime: str) -> str:
     return "".join(p.get("text", "") for p in cand if not p.get("thought"))
 
 
+# Same options on every call: Ollama reloads the model (~80s on a CPU laptop) if num_ctx changes.
+OLLAMA_OPTIONS = {"temperature": 0, "num_ctx": 8192}
+
+
 def _ollama(prompt: str, image: bytes | None, mime: str) -> str:
     msg = {"role": "user", "content": prompt}
     if image:
         msg["images"] = [base64.b64encode(image).decode()]
     r = httpx.post(f"{os.getenv('OLLAMA_URL', 'http://localhost:11434')}/api/chat",
+                   # think=False: on a CPU laptop hidden reasoning tokens double the latency
                    json={"model": model_name("ollama"), "messages": [msg], "stream": False,
-                         "format": "json", "options": {"temperature": 0}},
+                         "think": False, "keep_alive": "60m",
+                         "format": "json", "options": OLLAMA_OPTIONS},
                    timeout=600)
     r.raise_for_status()
     return r.json()["message"]["content"]
+
+
+def warm_ollama() -> None:
+    """Load the local model into memory now, so the first private scan doesn't pay for it."""
+    try:
+        httpx.post(f"{os.getenv('OLLAMA_URL', 'http://localhost:11434')}/api/chat",
+                   json={"model": model_name("ollama"), "messages": [], "keep_alive": "60m",
+                         "options": OLLAMA_OPTIONS}, timeout=300)
+    except httpx.HTTPError:
+        pass
 
 
 def generate(prompt: str, image: bytes | None = None, mime: str = "image/jpeg",

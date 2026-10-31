@@ -77,7 +77,8 @@ computed exactly by software. Give 3 concrete suggestions for what to cut or cha
 Hard rules:
 - Use ONLY numbers that appear in the facts, copied exactly. Do not calculate new numbers.
 - Every suggestion must cite the fact ids it relies on.
-- "monthly_saving" must be a number copied from a cited fact, or 0.
+- Be specific: name the merchant or subscription to cancel or cap, not "review your spending".
+- "monthly_saving" must be a per-month number copied from a cited fact (e.g. a recurring charge you suggest cancelling), or 0.
 
 Facts:
 {facts}
