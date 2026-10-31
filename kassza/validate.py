@@ -23,6 +23,20 @@ def _rate(line: VatLine, cfg: dict) -> float | None:
     return None
 
 
+def drop_table_total(receipt: Receipt) -> Receipt:
+    """Remove a VAT-table row with no rate that is just the sum of the other rows.
+
+    Small models often copy the table's own "Összesen" line as an extra row. That's a
+    structural slip, not a misread number, so code fixes it instead of asking again.
+    """
+    rows = receipt.vat_summary
+    rest = [l for l in rows if l.rate is not None or l.code]
+    totals = [l for l in rows if l.rate is None and not l.code]
+    if len(totals) == 1 and rest and abs(totals[0].gross - sum(l.gross for l in rest)) <= TOL * len(rest):
+        return receipt.model_copy(update={"vat_summary": rest})
+    return receipt
+
+
 def vat_split(receipt: Receipt, cfg: dict | None = None) -> list[dict]:
     """Net / VAT per rate, computed by code from gross amounts (never taken from the model).
 

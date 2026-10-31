@@ -25,7 +25,7 @@ Rules:
 - Copy every purchased line. "amount" is the line's gross amount as printed, after line discounts (discounts are negative lines).
 - "vat_code" is the letter printed next to that amount, or null if the receipt prints none (common on restaurant bills).
 - Service charge ("Szervizdíj") is a line item.
-- "vat_summary" copies the printed VAT breakdown ("ÁFA bontás", per-letter totals) row by row: letter if printed, rate in %, net, VAT, gross. Use null for columns not printed. [] if there is no breakdown.
+- "vat_summary" copies the printed VAT breakdown ("ÁFA bontás", per-letter totals) row by row: letter if printed, rate in %, net, VAT, gross. Use null for columns not printed. Leave out the table's own total line. [] if there is no breakdown.
 - "rounding" is the cash rounding line ("Kerekítés"), else 0. "total" is the amount paid.
 - Item names: keep the original language. Do not invent lines or numbers you cannot read.
 - "category" must be one of the allowed categories, for the receipt as a whole."""
@@ -46,7 +46,7 @@ def _prompt(cfg: dict) -> str:
 def _attempt(prompt: str, image: bytes, mime: str):
     out = llm.generate(prompt, image, mime)
     try:
-        receipt = Receipt.model_validate(llm.parse_json(out["text"]))
+        receipt = validate.drop_table_total(Receipt.model_validate(llm.parse_json(out["text"])))
     except (ValueError, ValidationError) as e:
         return out, None, [{"id": "schema", "ok": False, "message": str(e)[:400]}]
     return out, receipt, validate.check(receipt)

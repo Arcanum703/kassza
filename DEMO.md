@@ -41,5 +41,5 @@ Show the repo tab.
 |---|---|
 | API 503 or slow | `KASSZA_REPLAY=1`, restart, carry on. Everything you rehearsed is cached. |
 | A check goes red live | "That's the point: it caught the model." Show the retry note. |
-| Local model is slow | Talk through the advice while it runs (about 45s when warm), or use the cached result. |
+| Local model is slow | The real bill takes about 100s locally (one self-corrected retry). Use the cached result on stage and say so honestly. |
 | Laptop dies | Play the backup video. |

@@ -79,3 +79,11 @@ def test_restaurant_split_uses_table():
     split = validate.vat_split(restaurant())
     assert [v["rate"] for v in split] == [5, 27]
     assert split[1]["vat"] == round(4554 - 4554 / 1.27, 2)
+
+
+def test_copied_table_total_row_is_dropped():
+    r = restaurant(vat_summary=[{"code": "5", "rate": 5, "net": 22450, "vat": 1123, "gross": 23573},
+                                {"code": "27", "rate": 27, "net": 3586, "vat": 968, "gross": 4554},
+                                {"net": 26036, "vat": 2091, "gross": 28127}])
+    fixed = validate.drop_table_total(r)
+    assert len(fixed.vat_summary) == 2 and ids_failed(fixed) == set()
