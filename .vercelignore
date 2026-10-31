@@ -1,0 +1,9 @@
+.venv
+data
+cache
+samples
+tests
+scripts
+.env
+.claude
+__pycache__

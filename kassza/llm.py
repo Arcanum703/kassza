@@ -17,7 +17,12 @@ from pathlib import Path
 import httpx
 
 CACHE = Path(__file__).resolve().parent.parent / "cache"
-CACHE.mkdir(exist_ok=True)
+if os.getenv("VERCEL"):  # read-only bundle: keep shipped cache, write new entries to /tmp
+    WRITE_CACHE = Path("/tmp/kassza-cache")
+    WRITE_CACHE.mkdir(exist_ok=True)
+else:
+    CACHE.mkdir(exist_ok=True)
+    WRITE_CACHE = CACHE
 
 _backend = os.getenv("KASSZA_BACKEND", "gemini")
 
@@ -103,6 +108,8 @@ def generate(prompt: str, image: bytes | None = None, mime: str = "image/jpeg",
     backend = backend or _backend
     key = _key(backend, prompt, image)
     path = CACHE / f"{key}.json"
+    if not path.exists():
+        path = WRITE_CACHE / f"{key}.json"
     if path.exists():
         hit = json.loads(path.read_text(encoding="utf-8"))
         return {**hit, "cached": True}

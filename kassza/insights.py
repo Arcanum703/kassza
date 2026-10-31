@@ -12,8 +12,7 @@ from . import db, llm
 SKIP = {"income", "transfer"}
 
 
-def facts(rows: list[dict] | None = None) -> list[dict]:
-    rows = rows if rows is not None else db.all_tx()
+def facts(rows: list[dict]) -> list[dict]:
     spend = [r for r in rows if r["amount"] < 0 and r["category"] not in SKIP]
     if not spend:
         return []
@@ -118,8 +117,8 @@ def ground(suggestion: dict, fact_list: list[dict]) -> list[str]:
     return problems
 
 
-def advise() -> dict:
-    fact_list = facts()
+def advise(owner: str) -> dict:
+    fact_list = facts(db.all_tx(owner))
     if not fact_list:
         return {"facts": [], "suggestions": [], "rejected": []}
     prompt = PROMPT.format(facts="\n".join(f"{f['id']}: {f['text']}" for f in fact_list))

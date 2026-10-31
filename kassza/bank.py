@@ -75,13 +75,13 @@ def categorize(rows: list[dict]) -> dict[str, str]:
     return result
 
 
-def import_csv(text: str) -> dict:
+def import_csv(text: str, owner: str) -> dict:
     rows = parse(text)
     cats = categorize(rows)
     added = 0
     for r in rows:
         key = f"bank|{r['date']}|{r['merchant']}|{r['amount']}"
-        if db.add("bank", r["date"], r["merchant"], r["amount"], r["currency"], cats[r["merchant"]],
+        if db.add(owner, "bank", r["date"], r["merchant"], r["amount"], r["currency"], cats[r["merchant"]],
                   r["raw"], key):
             added += 1
     return {"parsed": len(rows), "added": added, "categories": cats}

@@ -5,7 +5,7 @@ import os
 import threading
 
 import uvicorn
-from fastapi import FastAPI, File, HTTPException, UploadFile
+from fastapi import FastAPI, File, Header, HTTPException, UploadFile
 from fastapi.responses import FileResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
@@ -30,7 +30,8 @@ class Backend(BaseModel):
 @app.get("/api/backend")
 def get_backend():
     return {"backend": llm.get_backend(), "model": llm.model_name(),
-            "replay": os.getenv("KASSZA_REPLAY") == "1"}
+            "replay": os.getenv("KASSZA_REPLAY") == "1",
+            "private_available": not os.getenv("VERCEL")}
 
 
 @app.post("/api/backend")
@@ -45,7 +46,7 @@ def set_backend(b: Backend):
 
 
 @app.post("/api/scan")
-async def scan(file: UploadFile = File(...)):
+async def scan(file: UploadFile = File(...), x_kassza_user: str = Header("")):
     image = await file.read()
     try:
         result = receipt.scan(image, file.content_type or "image/jpeg")
@@ -53,46 +54,47 @@ async def scan(file: UploadFile = File(...)):
         raise HTTPException(502, f"{type(e).__name__}: {e}")
     r = result["receipt"]
     if r and result["ok"]:
-        result["tx_id"] = db.add("receipt", r["date"], r["vendor"], -r["total"], r["currency"],
+        r["vat_paid"] = round(sum(v["vat"] or 0 for v in result["vat_split"]))
+        result["tx_id"] = db.add(x_kassza_user, "receipt", r["date"], r["vendor"], -r["total"], r["currency"],
                                  r["category"], r, f"receipt|{r['date']}|{r['vendor']}|{r['total']}")
     return result
 
 
 @app.post("/api/import")
-async def import_csv(file: UploadFile = File(...)):
+async def import_csv(file: UploadFile = File(...), x_kassza_user: str = Header("")):
     text = (await file.read()).decode("utf-8-sig")
     try:
-        return bank.import_csv(text)
+        return bank.import_csv(text, x_kassza_user)
     except Exception as e:
         raise HTTPException(502, f"{type(e).__name__}: {e}")
 
 
 @app.get("/api/ledger")
-def ledger():
-    return db.all_tx()
+def ledger(x_kassza_user: str = Header("")):
+    return db.all_tx(x_kassza_user)
 
 
 @app.delete("/api/ledger")
-def clear():
-    db.clear()
+def clear(x_kassza_user: str = Header("")):
+    db.clear(x_kassza_user)
     return {"ok": True}
 
 
 @app.get("/api/insights")
-def get_insights():
+def get_insights(x_kassza_user: str = Header("")):
     try:
-        return insights.advise()
+        return insights.advise(x_kassza_user)
     except Exception as e:
         raise HTTPException(502, f"{type(e).__name__}: {e}")
 
 
 @app.get("/api/export.csv", response_class=PlainTextResponse)
-def export():
+def export(user: str = ""):
     """Columns match the CSV importers of Actual Budget and Firefly III (date, payee, category, amount)."""
     buf = io.StringIO()
     w = csv.writer(buf)
     w.writerow(["date", "payee", "category", "amount", "currency", "source"])
-    for t in db.all_tx():
+    for t in db.all_tx(user):
         w.writerow([t["date"], t["merchant"], t["category"], t["amount"], t["currency"], t["source"]])
     return PlainTextResponse(buf.getvalue(), media_type="text/csv",
                              headers={"Content-Disposition": "attachment; filename=kassza-ledger.csv"})
