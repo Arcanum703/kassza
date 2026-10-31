@@ -11,6 +11,6 @@
     "D": {"rate": 0, "label": "AJT (outside scope)"},
     "E": {"rate": 0, "label": "TAM (exempt)"}
   },
-  "receipt_hints": "Hungarian NAV till receipts print each item with a VAT letter (A/B/C/D/E) after the price. 'ÖSSZESEN' or 'FIZETENDŐ' is the total. 'Kerekítés' is cash rounding to 5 HUF. 'ADÓSZÁM' is the vendor tax number. Dates are printed YYYY.MM.DD.",
+  "receipt_hints": "Hungarian NAV till receipts print each item with a VAT letter (A/B/C/D/E) after the price. 'ÖSSZESEN' or 'FIZETENDŐ' is the total. 'Kerekítés' is cash rounding to 5 HUF. 'ADÓSZÁM' is the vendor tax number. Dates are printed YYYY.MM.DD. Restaurant bills often print no VAT letter per line; instead an 'ÁFA bontás' table lists rate (5 or 27), net, VAT and gross. Ignore EUR conversions; use the HUF amounts. The footer often names the till software company (e.g. GastroMASTER), which is not the vendor; if no shop name is printed, use \"Unknown\".",
   "categories": ["groceries", "eating_out", "transport", "health", "household", "clothing", "entertainment", "subscriptions", "utilities", "rent", "education", "other"]
 }

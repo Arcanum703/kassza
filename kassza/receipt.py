@@ -17,14 +17,15 @@ Allowed categories: {categories}
 
 Return ONLY a JSON object with exactly these keys:
 {{"vendor": str, "tax_number": str|null, "date": "YYYY-MM-DD", "currency": "{currency}",
- "items": [{{"name": str, "amount": number, "vat_code": str}}],
- "vat_summary": [{{"code": str, "gross": number}}],
+ "items": [{{"name": str, "amount": number, "vat_code": str|null}}],
+ "vat_summary": [{{"code": str|null, "rate": number|null, "net": number|null, "vat": number|null, "gross": number}}],
  "rounding": number, "total": number, "category": str}}
 
 Rules:
 - Copy every purchased line. "amount" is the line's gross amount as printed, after line discounts (discounts are negative lines).
-- "vat_code" is the letter printed next to that amount.
-- "vat_summary" is the per-VAT-code gross summary block if the receipt prints one, else [].
+- "vat_code" is the letter printed next to that amount, or null if the receipt prints none (common on restaurant bills).
+- Service charge ("Szervizdíj") is a line item.
+- "vat_summary" copies the printed VAT breakdown ("ÁFA bontás", per-letter totals) row by row: letter if printed, rate in %, net, VAT, gross. Use null for columns not printed. [] if there is no breakdown.
 - "rounding" is the cash rounding line ("Kerekítés"), else 0. "total" is the amount paid.
 - Item names: keep the original language. Do not invent lines or numbers you cannot read.
 - "category" must be one of the allowed categories, for the receipt as a whole."""

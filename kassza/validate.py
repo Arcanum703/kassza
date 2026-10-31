@@ -1,27 +1,50 @@
 """Ordinary code that checks the model. The model reads the receipt; code does the maths.
 
+Two receipt styles are handled:
+- shop till receipts: a VAT letter (A/B/C...) after each line amount
+- restaurant bills: no per-line letter, but a printed VAT table (rate, net, VAT, gross)
+
 Every check returns a dict {id, ok, message}. A receipt is accepted only if all pass.
 """
 import re
 from datetime import date
 
 from . import country
-from .schema import Receipt
+from .schema import Receipt, VatLine
 
 TOL = 1.0  # HUF: per-line rounding on printed receipts
 
 
+def _rate(line: VatLine, cfg: dict) -> float | None:
+    if line.rate is not None:
+        return line.rate
+    if line.code:
+        return cfg["vat_codes"].get(line.code.upper(), {}).get("rate")
+    return None
+
+
 def vat_split(receipt: Receipt, cfg: dict | None = None) -> list[dict]:
-    """Net / VAT per code, computed from item gross amounts (never from the model)."""
+    """Net / VAT per rate, computed by code from gross amounts (never taken from the model).
+
+    Uses the printed VAT table if there is one, otherwise groups line items by VAT letter.
+    """
     cfg = cfg or country.load()
-    groups: dict[str, float] = {}
-    for it in receipt.items:
-        groups[it.vat_code.upper()] = groups.get(it.vat_code.upper(), 0) + it.amount
+    groups: list[tuple[str, float | None, float]] = []
+    if receipt.vat_summary:
+        for line in receipt.vat_summary:
+            rate = _rate(line, cfg)
+            groups.append((line.code or (f"{rate:g}%" if rate is not None else "?"), rate, line.gross))
+    else:
+        by_code: dict[str, float] = {}
+        for it in receipt.items:
+            code = (it.vat_code or "?").upper()
+            by_code[code] = by_code.get(code, 0) + it.amount
+        for code, gross in sorted(by_code.items()):
+            groups.append((code, cfg["vat_codes"].get(code, {}).get("rate"), gross))
     out = []
-    for code, gross in sorted(groups.items()):
-        rate = cfg["vat_codes"].get(code, {}).get("rate")
+    for code, rate, gross in groups:
         if rate is None:
-            out.append({"code": code, "rate": None, "gross": gross, "net": None, "vat": None})
+            out.append({"code": code, "rate": None, "gross": round(gross, 2), "net": None, "vat": None})
             continue
         net = round(gross / (1 + rate / 100), 2)
         out.append({"code": code, "rate": rate, "gross": round(gross, 2), "net": net, "vat": round(gross - net, 2)})
@@ -45,20 +68,45 @@ def check(receipt: Receipt, cfg: dict | None = None) -> list[dict]:
         add("rounding_size", abs(receipt.rounding) < step,
             f"Cash rounding {receipt.rounding:g} must be smaller than {step}")
 
-    known = set(cfg["vat_codes"])
-    unknown = sorted({i.vat_code.upper() for i in receipt.items} - known)
-    add("vat_codes_known", not unknown,
-        "All VAT codes are valid" if not unknown else f"Unknown VAT code(s): {', '.join(unknown)}")
+    codes = {i.vat_code.upper() for i in receipt.items if i.vat_code}
+    unknown = sorted(codes - set(cfg["vat_codes"]))
+    if codes:
+        add("vat_codes_known", not unknown,
+            "All VAT letters are valid" if not unknown else f"Unknown VAT letter(s): {', '.join(unknown)}")
 
     if receipt.vat_summary:
-        split = {v["code"]: v["gross"] for v in vat_split(receipt, cfg)}
-        bad = []
+        valid_rates = {v["rate"] for v in cfg["vat_codes"].values()}
+        rate_bad, math_bad = [], []
         for line in receipt.vat_summary:
-            mine = split.get(line.code.upper(), 0)
-            if abs(mine - line.gross) > TOL:
-                bad.append(f"{line.code}: items {mine:g} vs summary {line.gross:g}")
-        add("vat_summary_matches", not bad,
-            "VAT summary matches the line items" if not bad else "; ".join(bad))
+            rate = _rate(line, cfg)
+            label = line.code or (f"{rate:g}%" if rate is not None else "?")
+            if rate not in valid_rates:
+                rate_bad.append(f"{label}: rate {rate}")
+                continue
+            if line.net is not None and line.vat is not None:
+                if abs(line.net + line.vat - line.gross) > TOL:
+                    math_bad.append(f"{label}: net {line.net:g} + VAT {line.vat:g} ≠ gross {line.gross:g}")
+                elif abs(line.net * rate / 100 - line.vat) > TOL + 0.5:
+                    math_bad.append(f"{label}: {rate:g}% of {line.net:g} is {line.net * rate / 100:.0f}, printed VAT {line.vat:g}")
+        add("vat_rates_valid", not rate_bad,
+            "VAT rates are legal Hungarian rates" if not rate_bad else "Unknown VAT rate: " + "; ".join(rate_bad))
+        if any(l.net is not None and l.vat is not None for l in receipt.vat_summary):
+            add("vat_table_math", not math_bad,
+                "Each VAT row: net + VAT = gross, and VAT = net × rate" if not math_bad else "; ".join(math_bad))
+
+        table_gross = round(sum(l.gross for l in receipt.vat_summary), 2)
+        add("vat_table_total", abs(table_gross - items_sum) <= TOL * len(receipt.vat_summary),
+            f"VAT table gross {table_gross:g} vs line items {items_sum:g}")
+
+        if codes and all(l.code for l in receipt.vat_summary):
+            per_code: dict[str, float] = {}
+            for it in receipt.items:
+                if it.vat_code:
+                    per_code[it.vat_code.upper()] = per_code.get(it.vat_code.upper(), 0) + it.amount
+            bad = [f"{l.code}: items {per_code.get(l.code.upper(), 0):g} vs table {l.gross:g}"
+                   for l in receipt.vat_summary if abs(per_code.get(l.code.upper(), 0) - l.gross) > TOL]
+            add("vat_letters_match_table", not bad,
+                "Items grouped by VAT letter match the VAT table" if not bad else "; ".join(bad))
 
     try:
         d = date.fromisoformat(receipt.date)

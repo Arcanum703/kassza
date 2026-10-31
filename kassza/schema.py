@@ -5,12 +5,16 @@ from pydantic import BaseModel, Field
 class Item(BaseModel):
     name: str
     amount: float = Field(description="Gross line amount as printed, after any discount")
-    vat_code: str = Field(description="VAT letter printed next to the amount, e.g. A/B/C")
+    vat_code: str | None = Field(None, description="VAT letter printed next to the amount, if any")
 
 
 class VatLine(BaseModel):
-    code: str
-    gross: float = Field(description="Gross total printed for this VAT code in the summary")
+    """One row of the printed VAT breakdown, copied as printed."""
+    code: str | None = None
+    rate: float | None = None
+    net: float | None = None
+    vat: float | None = None
+    gross: float
 
 
 class Receipt(BaseModel):

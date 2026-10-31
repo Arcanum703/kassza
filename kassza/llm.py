@@ -1,6 +1,6 @@
 """Two Gemma 4 backends behind one call.
 
-- gemini: gemma-4-31b-it through the Gemini API (needs GEMINI_API_KEY)
+- gemini: gemma-4-26b-a4b-it through the Gemini API (needs GEMINI_API_KEY); 31B gives the same answers here but took ~130s vs ~11s
 - ollama: gemma4:e4b on this machine; nothing leaves the laptop
 
 Every successful response is cached by a hash of (backend, model, prompt, image).
@@ -37,7 +37,7 @@ def model_name(backend: str | None = None) -> str:
     backend = backend or _backend
     if backend == "ollama":
         return os.getenv("OLLAMA_MODEL", "gemma4:e4b")
-    return os.getenv("GEMINI_MODEL", "gemma-4-31b-it")
+    return os.getenv("GEMINI_MODEL", "gemma-4-26b-a4b-it")
 
 
 def _key(backend: str, prompt: str, image: bytes | None) -> str:
@@ -55,10 +55,14 @@ def _gemini(prompt: str, image: bytes | None, mime: str) -> str:
     if image:
         parts.insert(0, {"inline_data": {"mime_type": mime, "data": base64.b64encode(image).decode()}})
     url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name('gemini')}:generateContent"
-    r = httpx.post(url, headers={"x-goog-api-key": key},
-                   json={"contents": [{"role": "user", "parts": parts}],
-                         "generationConfig": {"temperature": 0}},
-                   timeout=120)
+    # minimal thinking: full thinking made gemma-4-31b-it take 20s+ even for one-word answers
+    body = {"contents": [{"role": "user", "parts": parts}],
+            "generationConfig": {"temperature": 0, "thinkingConfig": {"thinkingLevel": os.getenv("GEMINI_THINKING", "minimal")}}}
+    for wait in (2, 5, 0):  # the free tier answers 503/429 under load; retry briefly
+        r = httpx.post(url, headers={"x-goog-api-key": key}, json=body, timeout=90)
+        if r.status_code not in (429, 500, 503) or not wait:
+            break
+        time.sleep(wait)
     r.raise_for_status()
     cand = r.json()["candidates"][0]["content"]["parts"]
     # Thinking models may return thought parts first; keep the visible answer.
