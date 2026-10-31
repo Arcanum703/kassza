@@ -12,13 +12,14 @@ from pydantic import BaseModel
 import kassza  # noqa: F401  (loads .env)
 from kassza import bank, db, insights, llm, receipt
 
+ROOT = os.path.dirname(os.path.abspath(__file__))
 app = FastAPI(title="Kassza")
-app.mount("/static", StaticFiles(directory="static"), name="static")
+app.mount("/static", StaticFiles(directory=os.path.join(ROOT, "static")), name="static")
 
 
 @app.get("/")
 def index():
-    return FileResponse("static/index.html")
+    return FileResponse(os.path.join(ROOT, "static", "index.html"))
 
 
 class Backend(BaseModel):
