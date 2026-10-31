@@ -1,0 +1,16 @@
+{
+  "country": "HU",
+  "currency": "HUF",
+  "currency_decimals": 0,
+  "cash_rounding_to": 5,
+  "tax_number_regex": "\\d{8}-\\d-\\d{2}",
+  "vat_codes": {
+    "A": {"rate": 5, "label": "5% (basic food, medicine, books)"},
+    "B": {"rate": 18, "label": "18% (dairy, bakery, accommodation)"},
+    "C": {"rate": 27, "label": "27% (standard rate)"},
+    "D": {"rate": 0, "label": "AJT (outside scope)"},
+    "E": {"rate": 0, "label": "TAM (exempt)"}
+  },
+  "receipt_hints": "Hungarian NAV till receipts print each item with a VAT letter (A/B/C/D/E) after the price. 'ÖSSZESEN' or 'FIZETENDŐ' is the total. 'Kerekítés' is cash rounding to 5 HUF. 'ADÓSZÁM' is the vendor tax number. Dates are printed YYYY.MM.DD.",
+  "categories": ["groceries", "eating_out", "transport", "health", "household", "clothing", "entertainment", "subscriptions", "utilities", "rent", "education", "other"]
+}
