@@ -6,3 +6,4 @@ data/*.db
 cache/*.json
 samples/*
 !samples/demo-bank.csv
+static/_test.jpg

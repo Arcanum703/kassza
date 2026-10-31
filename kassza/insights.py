@@ -78,6 +78,8 @@ Hard rules:
 - Use ONLY numbers that appear in the facts, copied exactly. Do not calculate new numbers.
 - Every suggestion must cite the fact ids it relies on.
 - Be specific: name the merchant or subscription to cancel or cap, not "review your spending".
+- The 3 suggestions must be about 3 different categories. Start with the biggest month-over-month increase, if there is one.
+- In "detail", quote the relevant amounts from the facts so the reader sees why.
 - "monthly_saving" must be a per-month number copied from a cited fact (e.g. a recurring charge you suggest cancelling), or 0.
 
 Facts:
