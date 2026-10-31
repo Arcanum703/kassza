@@ -1,0 +1,246 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kassza</title>
+<style>
+:root{--bg:#f6f5f1;--card:#fff;--ink:#1d1d1b;--muted:#6b6a64;--line:#e4e2db;--ok:#1f7a4d;--okbg:#e6f4ec;--bad:#b3261e;--badbg:#fbe9e7;--accent:#2d4bd6;--priv:#5a3fc0;--privbg:#efeafd}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.45 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+header{display:flex;align-items:center;gap:16px;flex-wrap:wrap;padding:14px 24px;border-bottom:1px solid var(--line);background:var(--card);position:sticky;top:0;z-index:2}
+h1{font-size:20px;margin:0;letter-spacing:-.02em}h1 small{font-weight:400;color:var(--muted);font-size:13px;margin-left:8px}
+.spacer{flex:1}
+.pill{display:inline-flex;align-items:center;gap:6px;padding:5px 12px;border-radius:999px;font-size:13px;font-weight:600;border:1px solid var(--line)}
+.pill.cloud{background:#eef2ff;color:var(--accent)}.pill.private{background:var(--privbg);color:var(--priv);border-color:#d6ccf7}
+.pill.off{background:var(--okbg);color:var(--ok)}.pill.on{background:#f1f0ec;color:var(--muted)}
+.toggle{display:flex;border:1px solid var(--line);border-radius:999px;overflow:hidden}
+.toggle button{border:0;background:none;padding:6px 14px;font:inherit;font-size:13px;cursor:pointer;color:var(--muted)}
+.toggle button.active{background:var(--ink);color:#fff}
+main{max-width:1180px;margin:0 auto;padding:20px 24px;display:grid;grid-template-columns:380px 1fr;gap:20px}
+@media(max-width:900px){main{grid-template-columns:1fr;padding:16px}}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:18px}
+.card h2{font-size:14px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin:0 0 12px}
+.drop{border:2px dashed var(--line);border-radius:10px;padding:22px;text-align:center;cursor:pointer;color:var(--muted)}
+.drop.hover{border-color:var(--accent);color:var(--accent)}
+.drop img{max-width:100%;max-height:260px;border-radius:6px;display:block;margin:0 auto 8px}
+.btn{border:1px solid var(--ink);background:var(--ink);color:#fff;border-radius:8px;padding:8px 14px;font:inherit;font-size:14px;cursor:pointer}
+.btn.ghost{background:none;color:var(--ink)}.btn:disabled{opacity:.5;cursor:wait}
+.row{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+video{width:100%;border-radius:8px;display:none;margin-top:10px}
+.status{font-size:13px;color:var(--muted);margin-top:8px;min-height:18px}
+.stack{display:grid;gap:20px;align-content:start}
+table{width:100%;border-collapse:collapse;font-size:14px}th,td{text-align:left;padding:6px 8px;border-bottom:1px solid var(--line)}
+th{font-size:12px;color:var(--muted);font-weight:600}td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
+.checks{display:grid;gap:6px;margin-top:12px}
+.check{padding:7px 10px;border-radius:8px;font-size:13px}.check.ok{background:var(--okbg);color:var(--ok)}.check.bad{background:var(--badbg);color:var(--bad)}
+.vendor{font-size:18px;font-weight:700}.meta{color:var(--muted);font-size:13px}
+.verdict{display:inline-block;padding:3px 10px;border-radius:6px;font-weight:700;font-size:13px}
+.verdict.ok{background:var(--okbg);color:var(--ok)}.verdict.bad{background:var(--badbg);color:var(--bad)}
+.sugg{border:1px solid var(--line);border-radius:10px;padding:12px 14px;margin-bottom:10px}
+.sugg h3{margin:0 0 4px;font-size:15px}.sugg.rejected{background:var(--badbg);border-color:#f2c4bf}
+.sugg.rejected h3{text-decoration:line-through;color:var(--bad)}
+.chip{display:inline-block;font-size:12px;padding:1px 7px;border-radius:5px;background:#f1f0ec;margin:6px 4px 0 0;cursor:pointer;font-family:ui-monospace,monospace}
+.fact{font-size:13px;padding:4px 6px;border-radius:5px}.fact.hl{background:#fff3c4}
+.saving{float:right;font-weight:700;color:var(--ok)}
+.empty{color:var(--muted);font-size:14px}
+details summary{cursor:pointer;color:var(--muted);font-size:13px;margin-top:8px}
+.cat{font-size:12px;padding:1px 7px;border-radius:5px;background:#f1f0ec}
+</style>
+</head>
+<body>
+<header>
+  <h1>Kassza<small>private ledger · Gemma 4</small></h1>
+  <span id="where" class="pill cloud">…</span>
+  <span id="net" class="pill on">online</span>
+  <div class="spacer"></div>
+  <div class="toggle" role="group" aria-label="Model backend">
+    <button data-b="gemini">Cloud · 31B</button>
+    <button data-b="ollama">Private · on-device</button>
+  </div>
+</header>
+
+<main>
+  <div class="stack">
+    <section class="card">
+      <h2>1 · Scan a receipt</h2>
+      <div id="drop" class="drop" tabindex="0">Drop a receipt photo, or click to choose</div>
+      <input id="file" type="file" accept="image/*" hidden>
+      <video id="cam" autoplay playsinline></video>
+      <div class="row">
+        <button class="btn ghost" id="camBtn">Use camera</button>
+        <button class="btn" id="snapBtn" style="display:none">Capture</button>
+      </div>
+      <div id="scanStatus" class="status"></div>
+    </section>
+
+    <section class="card">
+      <h2>2 · Import bank statement</h2>
+      <p class="meta" style="margin-top:0">Revolut CSV or any CSV with date, description and amount. Amounts are parsed by code; Gemma only names categories.</p>
+      <input id="csv" type="file" accept=".csv,text/csv">
+      <div class="row"><button class="btn ghost" id="demoCsv">Load demo statement</button></div>
+      <div id="csvStatus" class="status"></div>
+    </section>
+  </div>
+
+  <div class="stack">
+    <section class="card" id="resultCard" style="display:none">
+      <h2>Receipt</h2>
+      <div id="result"></div>
+    </section>
+
+    <section class="card">
+      <h2 style="display:flex;align-items:center">3 · What to change next month
+        <span class="spacer"></span><button class="btn" id="adviseBtn">Get advice</button></h2>
+      <div id="advice" class="empty">Facts are computed from your ledger by code. Gemma writes the advice and may only quote those numbers. Anything it makes up is rejected.</div>
+    </section>
+
+    <section class="card">
+      <h2 style="display:flex;align-items:center">Ledger <span class="spacer"></span>
+        <a class="btn ghost" href="/api/export.csv" style="text-decoration:none;font-size:13px">Export CSV</a>
+        <button class="btn ghost" id="clearBtn" style="margin-left:8px;font-size:13px">Clear</button></h2>
+      <div id="ledger" class="empty">No transactions yet.</div>
+    </section>
+  </div>
+</main>
+
+<script>
+const $ = s => document.querySelector(s);
+const fmt = n => Math.round(n).toLocaleString('hu-HU');
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+async function api(path, opts) {
+  const r = await fetch(path, opts);
+  const body = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(body.detail || r.statusText);
+  return body;
+}
+
+// backend toggle + privacy badge
+async function showBackend(b) {
+  document.querySelectorAll('.toggle button').forEach(x => x.classList.toggle('active', x.dataset.b === b.backend));
+  const w = $('#where');
+  if (b.backend === 'ollama') { w.className = 'pill private'; w.textContent = '🔒 On this laptop · ' + b.model; }
+  else { w.className = 'pill cloud'; w.textContent = '☁ Gemini API · ' + b.model; }
+  if (b.replay) w.textContent += ' · replay';
+}
+document.querySelectorAll('.toggle button').forEach(btn => btn.onclick = async () =>
+  showBackend(await api('/api/backend', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({backend: btn.dataset.b})})));
+api('/api/backend').then(showBackend);
+
+function net() { const n = $('#net'); n.className = 'pill ' + (navigator.onLine ? 'on' : 'off'); n.textContent = navigator.onLine ? 'online' : '✈ offline'; }
+addEventListener('online', net); addEventListener('offline', net); net();
+
+// receipt scanning
+async function scan(blob) {
+  const url = URL.createObjectURL(blob);
+  $('#drop').innerHTML = `<img src="${url}" alt="Receipt to scan">Reading…`;
+  const t0 = performance.now();
+  const tick = setInterval(() => $('#scanStatus').textContent = `Gemma is reading the receipt… ${((performance.now() - t0) / 1000).toFixed(0)}s`, 250);
+  const fd = new FormData(); fd.append('file', blob, 'receipt.jpg');
+  try {
+    const res = await api('/api/scan', {method: 'POST', body: fd});
+    const secs = ((performance.now() - t0) / 1000).toFixed(1);
+    $('#scanStatus').textContent = `${secs}s · ${res.model} · ${res.attempts.length} attempt(s)${res.attempts.some(a => a.cached) ? ' · cached' : ''}`;
+    renderReceipt(res);
+    loadLedger();
+  } catch (e) { $('#scanStatus').textContent = 'Error: ' + e.message; }
+  finally { clearInterval(tick); $('#drop').innerHTML = `<img src="${url}" alt="Scanned receipt">Drop another receipt`; }
+}
+
+function renderReceipt(res) {
+  $('#resultCard').style.display = '';
+  const r = res.receipt;
+  if (!r) { $('#result').innerHTML = `<span class="verdict bad">Could not read receipt</span>` + checks(res.checks); return; }
+  const retried = res.attempts.length > 1;
+  $('#result').innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:start;gap:12px">
+      <div><div class="vendor">${esc(r.vendor)}</div>
+      <div class="meta">${esc(r.date)} · ${esc(r.tax_number || 'no tax number')} · <span class="cat">${esc(r.category)}</span></div></div>
+      <div style="text-align:right"><div class="vendor">${fmt(r.total)} ${esc(r.currency)}</div>
+      <span class="verdict ${res.ok ? 'ok' : 'bad'}">${res.ok ? '✓ All checks passed' : '✗ Checks failed — not saved'}</span></div>
+    </div>
+    ${retried ? `<p class="meta">First reading failed ${res.attempts[0].checks.filter(c => !c.ok).length} check(s); Gemma was shown the errors and re-read the photo.</p>` : ''}
+    <table style="margin-top:12px"><tr><th>Item</th><th>VAT</th><th class="num">Amount</th></tr>
+      ${r.items.map(i => `<tr><td>${esc(i.name)}</td><td>${esc(i.vat_code)}</td><td class="num">${fmt(i.amount)}</td></tr>`).join('')}
+      ${r.rounding ? `<tr><td class="meta">Kerekítés (rounding)</td><td></td><td class="num">${fmt(r.rounding)}</td></tr>` : ''}
+    </table>
+    <table style="margin-top:12px"><tr><th>VAT code</th><th class="num">Rate</th><th class="num">Net</th><th class="num">VAT</th><th class="num">Gross</th></tr>
+      ${res.vat_split.map(v => `<tr><td>${esc(v.code)}</td><td class="num">${v.rate ?? '?'}%</td><td class="num">${v.net == null ? '–' : fmt(v.net)}</td><td class="num">${v.vat == null ? '–' : fmt(v.vat)}</td><td class="num">${fmt(v.gross)}</td></tr>`).join('')}
+    </table>
+    <p class="meta">Net and VAT are computed by code from the line items, not by the model.</p>
+    ${checks(res.checks)}`;
+}
+const checks = cs => `<div class="checks">${cs.map(c => `<div class="check ${c.ok ? 'ok' : 'bad'}">${c.ok ? '✓' : '✗'} ${esc(c.message)}</div>`).join('')}</div>`;
+
+const drop = $('#drop'), file = $('#file');
+drop.onclick = () => file.click();
+drop.onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') file.click(); };
+file.onchange = () => file.files[0] && scan(file.files[0]);
+drop.ondragover = e => { e.preventDefault(); drop.classList.add('hover'); };
+drop.ondragleave = () => drop.classList.remove('hover');
+drop.ondrop = e => { e.preventDefault(); drop.classList.remove('hover'); e.dataTransfer.files[0] && scan(e.dataTransfer.files[0]); };
+
+$('#camBtn').onclick = async () => {
+  try {
+    const s = await navigator.mediaDevices.getUserMedia({video: {facingMode: 'environment', width: {ideal: 1920}}});
+    $('#cam').srcObject = s; $('#cam').style.display = 'block'; $('#snapBtn').style.display = '';
+  } catch (e) { $('#scanStatus').textContent = 'Camera unavailable: ' + e.message; }
+};
+$('#snapBtn').onclick = () => {
+  const v = $('#cam'), c = document.createElement('canvas');
+  c.width = v.videoWidth; c.height = v.videoHeight; c.getContext('2d').drawImage(v, 0, 0);
+  c.toBlob(b => scan(b), 'image/jpeg', 0.92);
+};
+
+// bank import
+async function importCsv(blob, name) {
+  $('#csvStatus').textContent = 'Gemma is categorising merchants…';
+  const fd = new FormData(); fd.append('file', blob, name);
+  try {
+    const r = await api('/api/import', {method: 'POST', body: fd});
+    $('#csvStatus').textContent = `${r.parsed} rows parsed, ${r.added} new, ${Object.keys(r.categories).length} merchants categorised.`;
+    loadLedger();
+  } catch (e) { $('#csvStatus').textContent = 'Error: ' + e.message; }
+}
+$('#csv').onchange = e => e.target.files[0] && importCsv(e.target.files[0], e.target.files[0].name);
+$('#demoCsv').onclick = async () => importCsv(await (await fetch('/static/demo-bank.csv')).blob(), 'demo-bank.csv');
+
+// ledger
+async function loadLedger() {
+  const rows = await api('/api/ledger');
+  if (!rows.length) { $('#ledger').innerHTML = 'No transactions yet.'; $('#ledger').className = 'empty'; return; }
+  $('#ledger').className = '';
+  $('#ledger').innerHTML = `<table><tr><th>Date</th><th>Merchant</th><th>Category</th><th class="num">Amount</th><th>Source</th></tr>
+    ${rows.slice(0, 40).map(t => `<tr><td>${esc(t.date)}</td><td>${esc(t.merchant)}</td><td><span class="cat">${esc(t.category)}</span></td>
+    <td class="num" style="color:${t.amount < 0 ? 'inherit' : 'var(--ok)'}">${fmt(t.amount)}</td><td class="meta">${t.source === 'receipt' ? '🧾 receipt' : '🏦 bank'}</td></tr>`).join('')}
+  </table>${rows.length > 40 ? `<p class="meta">…and ${rows.length - 40} more</p>` : ''}`;
+}
+$('#clearBtn').onclick = async () => { await api('/api/ledger', {method: 'DELETE'}); loadLedger(); };
+loadLedger();
+
+// advice
+$('#adviseBtn').onclick = async () => {
+  const btn = $('#adviseBtn'); btn.disabled = true; $('#advice').className = 'empty'; $('#advice').textContent = 'Computing facts, asking Gemma, checking every number…';
+  try {
+    const r = await api('/api/insights');
+    if (!r.facts.length) { $('#advice').textContent = 'Add some spending first.'; return; }
+    $('#advice').className = '';
+    const sug = (s, rejected) => `<div class="sugg ${rejected ? 'rejected' : ''}">
+      ${s.monthly_saving && !rejected ? `<span class="saving">−${fmt(s.monthly_saving)} HUF/mo</span>` : ''}
+      <h3>${esc(s.title)}</h3><div>${esc(s.detail)}</div>
+      ${(s.fact_ids || []).map(id => `<span class="chip" data-f="${esc(id)}">${esc(id)}</span>`).join('')}
+      ${rejected ? `<div class="check bad" style="margin-top:8px">Rejected by number check: ${esc(s.problems.join('; '))}</div>` : ''}</div>`;
+    $('#advice').innerHTML = r.suggestions.map(s => sug(s, false)).join('') +
+      (r.rejected.length ? `<p class="meta">${r.rejected.length} suggestion(s) rejected because they quoted numbers that are not in your data:</p>` + r.rejected.map(s => sug(s, true)).join('') : '') +
+      `<details><summary>${r.facts.length} facts Gemma was allowed to use</summary>${r.facts.map(f => `<div class="fact" id="${f.id}"><b>${f.id}</b> ${esc(f.text)}</div>`).join('')}</details>`;
+    document.querySelectorAll('.chip').forEach(c => c.onclick = () => {
+      document.querySelector('#advice details').open = true;
+      document.querySelectorAll('.fact').forEach(f => f.classList.toggle('hl', f.id === c.dataset.f));
+      document.getElementById(c.dataset.f)?.scrollIntoView({block: 'center', behavior: 'smooth'});
+    });
+  } catch (e) { $('#advice').textContent = 'Error: ' + e.message; }
+  finally { btn.disabled = false; }
+};
+</script>
+</body>
+</html>

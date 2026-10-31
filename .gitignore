@@ -3,3 +3,6 @@
 __pycache__/
 data/*.db
 .pytest_cache/
+cache/*.json
+samples/*
+!samples/demo-bank.csv
